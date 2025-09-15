@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect to Phantom Wallet</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        h1 {
+            font-weight: 500;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            background-color: #512da8; /* Phantom purple */
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #673ab7;
+        }
+        p {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #ccc;
+            word-break: break-all;
+            padding: 0 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Connect to Phantom Wallet</h1>
+    <button id="connectButton">Connect Wallet</button>
+    <p id="walletStatus">Status: Not Connected</p>
+
+    <script>
+        window.addEventListener('load', () => {
+            const connectButton = document.getElementById('connectButton');
+            const walletStatus = document.getElementById('walletStatus');
+
+            const getProvider = () => {
+                if ('solana' in window) {
+                    const provider = window.solana;
+                    if (provider.isPhantom) {
+                        return provider;
+                    }
+                }
+                return null;
+            };
+
+            const provider = getProvider();
+
+            if (!provider) {
+                walletStatus.textContent = 'Phantom wallet not found. Please install it.';
+                connectButton.style.display = 'none';
+                return;
+            }
+
+            // Listen for account changes
+            provider.on('accountChanged', (publicKey) => {
+                if (publicKey) {
+                    walletStatus.textContent = 'Connected: ' + publicKey.toString();
+                    connectButton.textContent = 'Disconnect';
+                } else {
+                    walletStatus.textContent = 'Status: Not Connected';
+                    connectButton.textContent = 'Connect Wallet';
+                }
+            });
+
+            connectButton.addEventListener('click', async () => {
+                if (provider.isConnected) {
+                    try {
+                        await provider.disconnect();
+                    } catch (err) {
+                        console.error('Disconnect error:', err);
+                        walletStatus.textContent = 'Error disconnecting. Check the console.';
+                    }
+                } else {
+                    try {
+                        const resp = await provider.connect();
+                        walletStatus.textContent = 'Connected: ' + resp.publicKey.toString();
+                        connectButton.textContent = 'Disconnect';
+                    } catch (err) {
+                        console.error('Connect error:', err);
+                        if (err.code === 4001) { // EIP-1193 user rejected request
+                            walletStatus.textContent = 'Connection request was rejected.';
+                        } else {
+                            walletStatus.textContent = 'Error connecting. Check the console.';
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
