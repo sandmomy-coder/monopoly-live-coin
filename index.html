@@ -33,6 +33,26 @@
         button:hover {
             background-color: #673ab7;
         }
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        #walletList {
+            margin: 20px 0 0;
+            padding: 0;
+            list-style: none;
+            max-width: 480px;
+            text-align: left;
+        }
+        #walletList li {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            word-break: break-all;
+        }
         p {
             margin-top: 20px;
             font-size: 14px;
@@ -46,13 +66,19 @@
 <body>
 
     <h1>Connect to Phantom Wallet</h1>
-    <button id="connectButton">Connect Wallet</button>
+    <div class="actions">
+        <button id="connectButton">Connect Wallet</button>
+        <button id="addWalletButton" disabled>Add Wallet to Board</button>
+    </div>
     <p id="walletStatus">Status: Not Connected</p>
+    <ul id="walletList" aria-live="polite"></ul>
 
     <script>
         window.addEventListener('load', () => {
             const connectButton = document.getElementById('connectButton');
+            const addWalletButton = document.getElementById('addWalletButton');
             const walletStatus = document.getElementById('walletStatus');
+            const walletList = document.getElementById('walletList');
 
             const getProvider = () => {
                 if ('solana' in window) {
@@ -69,6 +95,7 @@
             if (!provider) {
                 walletStatus.textContent = 'Phantom wallet not found. Please install it.';
                 connectButton.style.display = 'none';
+                addWalletButton.style.display = 'none';
                 return;
             }
 
@@ -77,9 +104,11 @@
                 if (publicKey) {
                     walletStatus.textContent = 'Connected: ' + publicKey.toString();
                     connectButton.textContent = 'Disconnect';
+                    addWalletButton.disabled = false;
                 } else {
                     walletStatus.textContent = 'Status: Not Connected';
                     connectButton.textContent = 'Connect Wallet';
+                    addWalletButton.disabled = true;
                 }
             });
 
@@ -87,6 +116,7 @@
                 if (provider.isConnected) {
                     try {
                         await provider.disconnect();
+                        addWalletButton.disabled = true;
                     } catch (err) {
                         console.error('Disconnect error:', err);
                         walletStatus.textContent = 'Error disconnecting. Check the console.';
@@ -96,6 +126,7 @@
                         const resp = await provider.connect();
                         walletStatus.textContent = 'Connected: ' + resp.publicKey.toString();
                         connectButton.textContent = 'Disconnect';
+                        addWalletButton.disabled = false;
                     } catch (err) {
                         console.error('Connect error:', err);
                         if (err.code === 4001) { // EIP-1193 user rejected request
@@ -105,6 +136,28 @@
                         }
                     }
                 }
+            });
+
+            addWalletButton.addEventListener('click', () => {
+                const currentWallet = provider.publicKey ? provider.publicKey.toString() : null;
+
+                if (!provider.isConnected || !currentWallet) {
+                    walletStatus.textContent = 'Connect your Phantom wallet before adding it.';
+                    return;
+                }
+
+                const existingWalletItem = walletList.querySelector(`[data-wallet="${currentWallet}"]`);
+
+                if (existingWalletItem) {
+                    walletStatus.textContent = 'Wallet already added to the board: ' + currentWallet;
+                    return;
+                }
+
+                const listItem = document.createElement('li');
+                listItem.dataset.wallet = currentWallet;
+                listItem.textContent = currentWallet;
+                walletList.appendChild(listItem);
+                walletStatus.textContent = 'Wallet added to the board: ' + currentWallet;
             });
         });
     </script>
